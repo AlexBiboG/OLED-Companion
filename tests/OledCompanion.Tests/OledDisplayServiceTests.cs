@@ -52,6 +52,43 @@ public sealed class OledDisplayServiceTests
     }
 
     [Fact]
+    public async Task MultipleHttp500ResponsesAreRetriedAndLatestTextIsRestored()
+    {
+        var transport = new FakeTransport();
+        await using var service = new OledDisplayService(
+            transport,
+            heartbeatInterval: TimeSpan.FromMilliseconds(10),
+            reconnectDelay: TimeSpan.FromMilliseconds(1));
+
+        await service.StartAsync();
+        await service.SetTextAsync("PERSIST");
+        transport.FailNextHeartbeat = true;
+        transport.ConnectFailuresRemaining = 3;
+
+        await transport.Reconnected.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+        Assert.True(transport.ConnectCount >= 5);
+        Assert.Contains("PERSIST", transport.Texts);
+    }
+
+    [Fact]
+    public async Task DisposeStopsReconnectLoopWhileGameSenseIsUnavailable()
+    {
+        var transport = new FakeTransport();
+        await using var service = new OledDisplayService(
+            transport,
+            heartbeatInterval: TimeSpan.FromMilliseconds(10),
+            reconnectDelay: TimeSpan.FromMilliseconds(1));
+
+        await service.StartAsync();
+        transport.FailNextHeartbeat = true;
+        transport.ConnectFailuresRemaining = int.MaxValue;
+
+        await transport.ReconnectAttempted.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await service.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(2));
+    }
+
+    [Fact]
     public async Task InitialConnectionFailureIsReported()
     {
         var transport = new FakeTransport { FailConnect = true };
@@ -69,15 +106,25 @@ public sealed class OledDisplayServiceTests
         public int HeartbeatCount { get; private set; }
         public bool FailConnect { get; init; }
         public bool FailNextHeartbeat { get; set; }
+        public int ConnectFailuresRemaining { get; set; }
         public TaskCompletionSource<bool> Reconnected { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource<bool> ReconnectAttempted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         public Task<GameSenseRegistrationResult> ConnectAsync(CancellationToken cancellationToken = default)
         {
             ConnectCount++;
             if (FailConnect)
                 throw new GameSenseUnavailableException("connect failed");
+            if (ConnectFailuresRemaining > 0)
+            {
+                ConnectFailuresRemaining--;
+                ReconnectAttempted.TrySetResult(true);
+                throw Http500("bind_game_event");
+            }
             if (ConnectCount >= 2)
                 Reconnected.TrySetResult(true);
+            if (ConnectCount >= 2)
+                ReconnectAttempted.TrySetResult(true);
             return Task.FromResult(new GameSenseRegistrationResult(Result("game_metadata"), Result("bind_game_event")));
         }
 
@@ -93,12 +140,15 @@ public sealed class OledDisplayServiceTests
             if (FailNextHeartbeat)
             {
                 FailNextHeartbeat = false;
-                throw new GameSenseUnavailableException("heartbeat failed");
+                throw Http500("game_heartbeat");
             }
             return Task.FromResult(Result("game_heartbeat"));
         }
 
         private static GameSenseHttpResult Result(string endpoint) =>
             new(endpoint, HttpStatusCode.OK, "OK", "{}");
+
+        private static GameSenseHttpException Http500(string endpoint) =>
+            new(endpoint, HttpStatusCode.InternalServerError, "Internal Server Error", "{}");
     }
 }

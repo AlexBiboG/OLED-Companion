@@ -30,8 +30,15 @@ public sealed class OledDisplayService(
             if (_heartbeatTask is not null)
                 return;
 
-            await ConnectLockedAsync(cancellationToken, restoreCurrentText: true);
             _runCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            try
+            {
+                await ConnectLockedAsync(cancellationToken, restoreCurrentText: true);
+            }
+            catch (GameSenseUnavailableException exception) when (exception.IsTransient)
+            {
+                Log($"OLED: vorübergehender Startfehler; Reconnect läuft im Hintergrund -> {exception.Message}");
+            }
             _heartbeatTask = HeartbeatLoopAsync(_runCancellation.Token);
         }
         finally
@@ -55,10 +62,23 @@ public sealed class OledDisplayService(
         await _gate.WaitAsync(cancellationToken);
         try
         {
-            if (_connected && _activeModule == moduleId && _currentText == text)
+            if (_activeModule == moduleId && _currentText == text)
                 return;
 
-            await SendTextWithReconnectLockedAsync(moduleId, text, cancellationToken);
+            // Keep the desired state even while GameSense is offline. The reconnect
+            // loop will replay this latest value after registration succeeds.
+            _activeModule = moduleId;
+            _currentText = text;
+
+            try
+            {
+                await SendTextWithReconnectLockedAsync(text, cancellationToken);
+            }
+            catch (GameSenseUnavailableException exception) when (exception.IsTransient)
+            {
+                _connected = false;
+                Log($"OLED: Update vorübergehend nicht gesendet; letzter Text bleibt vorgemerkt -> {exception.Message}");
+            }
         }
         finally
         {
@@ -99,11 +119,30 @@ public sealed class OledDisplayService(
             {
                 if (_currentText == text && _activeModule == moduleId && previousText is null)
                 {
-                    await SendTextWithReconnectLockedAsync(moduleId, " ", CancellationToken.None);
+                    _currentText = " ";
+                    try
+                    {
+                        await SendTextWithReconnectLockedAsync(" ", CancellationToken.None);
+                    }
+                    catch (GameSenseUnavailableException exception) when (exception.IsTransient)
+                    {
+                        _connected = false;
+                        Log($"OLED: Anzeige konnte nicht geleert werden; Reconnect übernimmt -> {exception.Message}");
+                    }
                 }
                 else if (_currentText == text && _activeModule == moduleId)
                 {
-                    await SendTextWithReconnectLockedAsync(previousModule, previousText!, CancellationToken.None);
+                    _activeModule = previousModule;
+                    _currentText = previousText!;
+                    try
+                    {
+                        await SendTextWithReconnectLockedAsync(previousText!, CancellationToken.None);
+                    }
+                    catch (GameSenseUnavailableException exception) when (exception.IsTransient)
+                    {
+                        _connected = false;
+                        Log($"OLED: Wiederherstellung vorübergehend nicht gesendet -> {exception.Message}");
+                    }
                 }
             }
             finally
@@ -129,6 +168,11 @@ public sealed class OledDisplayService(
             catch (OperationCanceledException)
             {
             }
+            catch (Exception exception)
+            {
+                // Never leak a background-task exception from disposal.
+                Log($"OLED: Hintergrundtask beim Beenden beendet -> {exception.Message}");
+            }
         }
 
         _runCancellation?.Dispose();
@@ -137,8 +181,8 @@ public sealed class OledDisplayService(
 
     private async Task HeartbeatLoopAsync(CancellationToken cancellationToken)
     {
-        using var timer = new PeriodicTimer(_heartbeatInterval);
-        while (await timer.WaitForNextTickAsync(cancellationToken))
+        var retryAttempt = 0;
+        while (!cancellationToken.IsCancellationRequested)
         {
             try
             {
@@ -154,37 +198,35 @@ public sealed class OledDisplayService(
                         await ConnectLockedAsync(cancellationToken, restoreCurrentText: true);
                     }
                 }
-                catch (GameSenseUnavailableException)
-                {
-                    _connected = false;
-                    Log("OLED: GameSense-Verbindung verloren; Reconnect wird versucht.");
-                }
                 finally
                 {
                     _gate.Release();
                 }
+
+                retryAttempt = 0;
+                await Task.Delay(_heartbeatInterval, cancellationToken);
+            }
+            catch (GameSenseUnavailableException exception) when (exception.IsTransient)
+            {
+                _connected = false;
+                Log($"OLED: GameSense-Verbindung verloren; Reconnect wird versucht -> {exception.Message}");
+                await DelayBeforeRetryAsync(retryAttempt++, cancellationToken);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
                 return;
             }
-
-            if (!_connected)
+            catch (Exception exception)
             {
-                try
-                {
-                    await Task.Delay(_reconnectDelay, cancellationToken);
-                }
-                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-                {
-                    return;
-                }
+                // A transport or serialization defect must not fault the demo task.
+                _connected = false;
+                Log($"OLED: Unerwarteter Hintergrundfehler; Reconnect wird versucht -> {exception.Message}");
+                await DelayBeforeRetryAsync(retryAttempt++, cancellationToken);
             }
         }
     }
 
     private async Task SendTextWithReconnectLockedAsync(
-        string moduleId,
         string text,
         CancellationToken cancellationToken)
     {
@@ -195,15 +237,21 @@ public sealed class OledDisplayService(
         {
             await transport.SendTextAsync(text, cancellationToken);
         }
-        catch (GameSenseUnavailableException)
+        catch (GameSenseUnavailableException exception) when (exception.IsTransient)
         {
             _connected = false;
-            await ConnectLockedAsync(cancellationToken, restoreCurrentText: false);
-            await transport.SendTextAsync(text, cancellationToken);
+            Log($"OLED: OLED-Update fehlgeschlagen; Reconnect wird versucht -> {exception.Message}");
+            throw;
         }
+        Log($"OLED: OLED-Update gesendet -> {text}");
+    }
 
-        _activeModule = moduleId;
-        _currentText = text;
+    private async Task DelayBeforeRetryAsync(int retryAttempt, CancellationToken cancellationToken)
+    {
+        var baseMilliseconds = Math.Max(1, _reconnectDelay.TotalMilliseconds);
+        var multiplier = Math.Pow(2, Math.Min(retryAttempt, 8));
+        var delayMilliseconds = Math.Min(5000, baseMilliseconds * multiplier);
+        await Task.Delay(TimeSpan.FromMilliseconds(delayMilliseconds), cancellationToken);
     }
 
     private async Task ConnectLockedAsync(CancellationToken cancellationToken, bool restoreCurrentText)

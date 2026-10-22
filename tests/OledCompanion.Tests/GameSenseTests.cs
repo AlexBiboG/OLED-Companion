@@ -67,6 +67,23 @@ public sealed class GameSenseTests
     }
 
     [Fact]
+    public async Task Http500IsMarkedAsTransient()
+    {
+        var handler = new RecordingHandler { StatusCode = HttpStatusCode.InternalServerError };
+        using var client = new HttpClient(handler);
+        var path = Path.GetTempFileName();
+        await File.WriteAllTextAsync(path, "{\"address\":\"127.0.0.1:51248\"}");
+
+        var exception = await Assert.ThrowsAsync<GameSenseHttpException>(() =>
+            new GameSenseClient(client, new CorePropsDiscovery()).RegisterAsync(path));
+
+        Assert.True(exception.IsTransient);
+        Assert.Equal(HttpStatusCode.InternalServerError, exception.StatusCode);
+        Assert.Contains("500", exception.Message, StringComparison.Ordinal);
+        File.Delete(path);
+    }
+
+    [Fact]
     public async Task HeartbeatUsesOnlyGameNameAndTheOledHandlerIsScreenOnly()
     {
         var handler = new RecordingHandler();
@@ -154,13 +171,14 @@ public sealed class GameSenseTests
         public List<string> Paths { get; } = [];
         public List<string> Bodies { get; } = [];
         public Exception? ExceptionToThrow { get; init; }
+        public HttpStatusCode StatusCode { get; init; } = HttpStatusCode.OK;
 
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             if (ExceptionToThrow is not null) throw ExceptionToThrow;
             Paths.Add(request.RequestUri!.AbsolutePath);
             Bodies.Add(await request.Content!.ReadAsStringAsync(cancellationToken));
-            return new HttpResponseMessage(HttpStatusCode.OK);
+            return new HttpResponseMessage(StatusCode);
         }
     }
 }

@@ -127,9 +127,7 @@ public sealed class GameSenseClient(
             var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
             var reason = response.ReasonPhrase ?? "";
             if (!response.IsSuccessStatusCode)
-                throw new GameSenseUnavailableException(
-                    $"GameSense endpoint '{endpoint}' returned {(int)response.StatusCode} {reason}. " +
-                    $"Response: {responseBody}");
+                throw new GameSenseHttpException(endpoint, response.StatusCode, reason, responseBody);
 
             return new GameSenseHttpResult(endpoint, response.StatusCode, reason, responseBody);
         }
@@ -139,7 +137,8 @@ public sealed class GameSenseClient(
         }
         catch (HttpRequestException exception)
         {
-            throw new GameSenseUnavailableException("GameSense Engine could not be reached.", exception);
+            throw new GameSenseUnavailableException(
+                "GameSense Engine could not be reached.", exception, isTransient: true);
         }
     }
 
