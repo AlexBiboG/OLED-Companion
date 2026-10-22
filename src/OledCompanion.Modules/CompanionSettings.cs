@@ -7,7 +7,16 @@ public sealed record CompanionSettings(
     bool StartWithWindows = false,
     bool RunInBackground = true,
     bool ClockModuleEnabled = true,
-    string DiagnosticMode = "B");
+    string DiagnosticMode = "B",
+    bool AutomaticGameDetection = true,
+    IReadOnlyList<GameProcessConfiguration>? GameProcesses = null);
+
+public sealed record GameProcessConfiguration(
+    string Id,
+    string DisplayName,
+    string ProcessName,
+    int Priority,
+    string DisplayText);
 
 public sealed class SettingsStore(string path)
 {
@@ -62,11 +71,12 @@ public sealed class OledClockModule(
 
         _runCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         var linked = _runCancellation;
+        _lastText = null;
         _runTask = RunAsync(linked);
         return Task.CompletedTask;
     }
 
-    public async ValueTask DisposeAsync()
+    public async Task StopAsync()
     {
         _runCancellation?.Cancel();
         if (_runTask is not null)
@@ -77,6 +87,11 @@ public sealed class OledClockModule(
         }
         _runCancellation?.Dispose();
         _runCancellation = null;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        await StopAsync();
     }
 
     private async Task RunAsync(CancellationTokenSource linked)

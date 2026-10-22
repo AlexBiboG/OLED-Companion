@@ -38,7 +38,7 @@ public sealed class ModuleTests
         await Task.Delay(50);
 
         Assert.All(display.Texts, text => Assert.Matches("^[0-9]{2}:[0-9]{2}$", text));
-        Assert.Single(display.Texts);
+        Assert.Equal(2, display.Texts.Count);
     }
 
     private static async Task WaitUntilAsync(Func<bool> condition)

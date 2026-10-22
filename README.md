@@ -37,6 +37,12 @@ Der Live-Hardwaretest startet mit `dotnet run --project src/OledCompanion.App/Ol
 
 Zukünftige Module verwenden `OledDisplayService` für deduplizierte Textaktualisierungen, zeitgesteuerte Anzeigen und automatische GameSense-Reconnects. Die Schnittstelle ist in [docs/oled-service.md](docs/oled-service.md) dokumentiert.
 
+Die automatische Spielerkennung verwendet ausschließlich reguläre Windows-Prozessnamen. Sie läuft
+standardmäßig alle drei Sekunden, registriert `VALORANT-Win64-Shipping.exe` als VALORANT und zeigt
+`VALORANT ACTIVE`. Nach dem Prozessende wird das Uhr-Modul wieder aktiviert. Registrierungen werden
+nach Priorität und anschließend nach ID deterministisch ausgewählt. Eigene Prozessnamen können lokal
+in `settings.json` über `GameProcesses` ergänzt werden.
+
 Für einen schlanken self-contained Windows-x64-Publish:
 
 ```bash

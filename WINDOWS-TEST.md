@@ -50,3 +50,14 @@ sind im Fenster verfügbar. Die Tray-App verwendet weiterhin ausschließlich Gam
 
 Der Build wurde unter Xubuntu cross-kompiliert. Die Tray-Oberfläche und das Verhalten des Windows-Trays
 müssen auf Windows 11 validiert werden; ein solcher Hardware- oder UI-Test wird auf Xubuntu nicht behauptet.
+
+## Automatische Spielerkennung (Phase 8)
+
+Die Spielerkennung ist standardmäßig aktiv und prüft alle drei Sekunden reguläre Prozessnamen.
+Für VALORANT wird `VALORANT-Win64-Shipping.exe` erkannt und das OLED-Modul `VALORANT ACTIVE`
+aktiviert. Wird der Prozess beendet, stellt die App das Uhr-Modul wieder her. Bei mehreren passenden
+Prozessen gewinnt die höhere Priorität, bei gleicher Priorität die alphabetisch kleinere ID.
+
+Die Erkennung verwendet keine Spielspeicherzugriffe, Hooks, DLL-Injection, Vanguard-Manipulation oder
+Overwolf. Ein Windows-Hardwaretest ist unter Xubuntu nicht simuliert; Prozess- und Modulwechsel werden
+automatisiert mit Test-Doubles geprüft.

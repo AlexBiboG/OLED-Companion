@@ -17,6 +17,7 @@ public partial class App : System.Windows.Application
     private MainWindow? _window;
     private OledDisplayService? _display;
     private OledClockModule? _clock;
+    private GameDetectionService? _detection;
     private HttpClient? _httpClient;
     private CompanionSettings _settings = new();
     private bool _allowExit;
@@ -42,11 +43,40 @@ public partial class App : System.Windows.Application
         if (_settings.ClockModuleEnabled)
             await _clock.StartAsync();
 
+        var processConfigurations = _settings.GameProcesses is { Count: > 0 }
+            ? _settings.GameProcesses
+            :
+        [
+            new GameProcessConfiguration(
+                "valorant",
+                "VALORANT",
+                "VALORANT-Win64-Shipping.exe",
+                100,
+                "VALORANT ACTIVE")
+        ];
+        _detection = new GameDetectionService(
+            _display,
+            _clock,
+            new WindowsProcessProvider(),
+            processConfigurations.Select(configuration => new DetectedGame(
+                configuration.Id,
+                configuration.DisplayName,
+                configuration.ProcessName,
+                configuration.Priority,
+                $"game:{configuration.Id}",
+                configuration.DisplayText)),
+            () => _settings.ClockModuleEnabled,
+            logger: Log);
+        await _detection.SetEnabledAsync(_settings.AutomaticGameDetection);
+        await _detection.StartAsync();
+
         _window = new MainWindow(
             _display,
             _clock,
+            _detection,
             _settings,
             SaveSettingsAsync,
+            _detection.SetEnabledAsync,
             RunDiagnosticAsync,
             RequestExitAsync);
         _window.Show();
@@ -106,6 +136,8 @@ public partial class App : System.Windows.Application
             return;
         _allowExit = true;
         _trayIcon?.Dispose();
+        if (_detection is not null)
+            await _detection.DisposeAsync();
         if (_clock is not null)
             await _clock.DisposeAsync();
         if (_display is not null)
