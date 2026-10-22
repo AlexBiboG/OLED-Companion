@@ -1,8 +1,12 @@
 using OledCompanion.GameSense;
 
+if (args.Length == 1 && args[0].Equals("demo", StringComparison.OrdinalIgnoreCase))
+    return await RunDemoAsync();
+
 if (!TryParseMode(args, out var mode))
 {
-    Console.Error.WriteLine("Verwendung: OledCompanion.App.exe A|B|C");
+    Console.Error.WriteLine("Verwendung: OledCompanion.App.exe demo|A|B|C");
+    Console.Error.WriteLine("demo = Live-Engine-Demo mit OledDisplayService");
     Console.Error.WriteLine("A = statischer Handler-Text, B = context-frame-key, C = numerischer data.value");
     return 2;
 }
@@ -93,3 +97,44 @@ static string ModeName(OledDiagnosticMode mode) => mode switch
     OledDiagnosticMode.NumericValue => "C / NUMERIC VALUE",
     _ => "UNKNOWN"
 };
+
+static async Task<int> RunDemoAsync()
+{
+    using var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(3) };
+    var client = new GameSenseClient(httpClient, new CorePropsDiscovery());
+    await using var display = new OledDisplayService(
+        new GameSenseOledDisplayTransport(client),
+        logger: Console.WriteLine);
+    using var cancellation = new CancellationTokenSource();
+
+    ConsoleCancelEventHandler cancelHandler = (_, eventArgs) =>
+    {
+        eventArgs.Cancel = true;
+        cancellation.Cancel();
+        Console.WriteLine("Strg+C erkannt – Demo wird sauber beendet ...");
+    };
+    Console.CancelKeyPress += cancelHandler;
+
+    try
+    {
+        Console.WriteLine("OLED Companion – Live-Engine-Demo");
+        await display.StartAsync(cancellation.Token);
+        var runner = new OledDemoRunner(display, Console.WriteLine);
+        await runner.RunAsync(cancellation.Token);
+    }
+    catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+    {
+        Console.WriteLine("Live-Engine-Demo beendet.");
+    }
+    catch (GameSenseUnavailableException exception)
+    {
+        Console.Error.WriteLine($"Live-Engine-Demo fehlgeschlagen: {exception.Message}");
+        return 1;
+    }
+    finally
+    {
+        Console.CancelKeyPress -= cancelHandler;
+    }
+
+    return 0;
+}

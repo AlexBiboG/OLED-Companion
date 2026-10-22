@@ -6,7 +6,8 @@ namespace OledCompanion.GameSense;
 public sealed class OledDisplayService(
     IOledDisplayTransport transport,
     TimeSpan? heartbeatInterval = null,
-    TimeSpan? reconnectDelay = null) : IAsyncDisposable
+    TimeSpan? reconnectDelay = null,
+    Action<string>? logger = null) : IOledDisplayService, IAsyncDisposable
 {
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly TimeSpan _heartbeatInterval = heartbeatInterval ?? TimeSpan.FromSeconds(5);
@@ -69,14 +70,23 @@ public sealed class OledDisplayService(
         string text,
         TimeSpan duration,
         CancellationToken cancellationToken = default)
+        => await ShowModuleTextForAsync("default", text, duration, cancellationToken);
+
+    public async Task ShowModuleTextForAsync(
+        string moduleId,
+        string text,
+        TimeSpan duration,
+        CancellationToken cancellationToken = default)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(moduleId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(text);
         if (duration <= TimeSpan.Zero)
             throw new ArgumentOutOfRangeException(nameof(duration));
 
         ThrowIfDisposed();
         var previousText = _currentText;
         var previousModule = _activeModule;
-        await SetTextAsync(text, cancellationToken);
+        await SetModuleTextAsync(moduleId, text, cancellationToken);
 
         try
         {
@@ -87,11 +97,11 @@ public sealed class OledDisplayService(
             await _gate.WaitAsync(CancellationToken.None);
             try
             {
-                if (_currentText == text && _activeModule == "default" && previousText is null)
+                if (_currentText == text && _activeModule == moduleId && previousText is null)
                 {
-                    await SendTextWithReconnectLockedAsync("default", " ", CancellationToken.None);
+                    await SendTextWithReconnectLockedAsync(moduleId, " ", CancellationToken.None);
                 }
-                else if (_currentText == text && _activeModule == "default")
+                else if (_currentText == text && _activeModule == moduleId)
                 {
                     await SendTextWithReconnectLockedAsync(previousModule, previousText!, CancellationToken.None);
                 }
@@ -147,6 +157,7 @@ public sealed class OledDisplayService(
                 catch (GameSenseUnavailableException)
                 {
                     _connected = false;
+                    Log("OLED: GameSense-Verbindung verloren; Reconnect wird versucht.");
                 }
                 finally
                 {
@@ -197,10 +208,24 @@ public sealed class OledDisplayService(
 
     private async Task ConnectLockedAsync(CancellationToken cancellationToken, bool restoreCurrentText)
     {
-        await transport.ConnectAsync(cancellationToken);
-        _connected = true;
-        if (restoreCurrentText && _currentText is not null)
-            await transport.SendTextAsync(_currentText, cancellationToken);
+        Log(_connected ? "OLED: Reconnect zu GameSense ..." : "OLED: Verbindung zu GameSense ...");
+        try
+        {
+            await transport.ConnectAsync(cancellationToken);
+            _connected = true;
+            Log("OLED: GameSense-Verbindung hergestellt.");
+            if (restoreCurrentText && _currentText is not null)
+            {
+                await transport.SendTextAsync(_currentText, cancellationToken);
+                Log($"OLED: letzter Text wiederhergestellt -> {_currentText}");
+            }
+        }
+        catch (GameSenseUnavailableException exception)
+        {
+            _connected = false;
+            Log($"OLED: Verbindung fehlgeschlagen -> {exception.Message}");
+            throw;
+        }
     }
 
     private void ThrowIfDisposed()
@@ -208,4 +233,6 @@ public sealed class OledDisplayService(
         if (_disposed)
             throw new ObjectDisposedException(nameof(OledDisplayService));
     }
+
+    private void Log(string message) => logger?.Invoke(message);
 }

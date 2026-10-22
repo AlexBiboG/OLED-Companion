@@ -27,6 +27,8 @@ dotnet run --project src/OledCompanion.App/OledCompanion.App.csproj -- B
 
 Der Diagnosemodus akzeptiert `A` (statischer Handlertext), `B` (dynamischer `context-frame-key`-Text) oder `C` (numerischer `data.value`).
 
+Der Live-Hardwaretest startet mit `dotnet run --project src/OledCompanion.App/OledCompanion.App.csproj -- demo` beziehungsweise unter Windows mit `OledCompanion.App.exe demo`. Er nutzt `OledDisplayService`, zeigt die Demo-Sequenz und reconnectet bei GameSense-Neustarts.
+
 Zukünftige Module verwenden `OledDisplayService` für deduplizierte Textaktualisierungen, zeitgesteuerte Anzeigen und automatische GameSense-Reconnects. Die Schnittstelle ist in [docs/oled-service.md](docs/oled-service.md) dokumentiert.
 
 Für einen schlanken self-contained Windows-x64-Publish:

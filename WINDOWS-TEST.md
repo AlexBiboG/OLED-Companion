@@ -20,6 +20,16 @@
 
 Jeder Lauf muss außerdem `SteelSeries Engine: gefunden`, HTTP-Statusinformationen für `game_metadata` und `bind_game_event` sowie den jeweiligen Event-Status melden. Alle drei Modi verwenden ausschließlich den OLED-Handler `screened-128x40` auf Zone `one`.
 
+## Live-Engine-Demo
+
+Für den ersten realen Engine-Test:
+
+```text
+OledCompanion.App.exe demo
+```
+
+Die Anwendung verwendet dabei `OledDisplayService` und zeigt `OLED READY` fünf Sekunden, danach `MODULE TEST` fünf Sekunden. Anschließend läuft ein Timer hoch. Alle 15 Sekunden erscheint kurz `OLED ACTIVE`; danach wird der vorherige Timer wiederhergestellt. Bei einem Neustart von SteelSeries GG bleibt das Programm geöffnet, registriert GameSense neu und stellt den letzten Text wieder her. Mit `Strg+C` wird sauber beendet.
+
 Wenn `coreProps.json` nicht gefunden wird, SteelSeries GG vollständig starten und den Test wiederholen. Bei einem erreichbaren Endpunkt mit fehlgeschlagener Registrierung bitte die vollständige Konsolenausgabe sichern.
 
 Die Anwendung verwendet ausschließlich die lokale GameSense-HTTP-Schnittstelle. Sie benötigt keine HID-Manipulation, keine Spielintegration und keine Administratorrechte.
