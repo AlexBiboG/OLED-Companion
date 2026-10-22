@@ -10,19 +10,20 @@ public sealed class GameSenseClient(
     private readonly GameSenseOptions _options = options ?? new();
     private Uri? _engineBaseUri;
 
-    public async Task RegisterAsync(string? corePropsPath = null, CancellationToken cancellationToken = default)
+    public async Task<GameSenseRegistrationResult> RegisterAsync(string? corePropsPath = null, CancellationToken cancellationToken = default)
     {
+        EnsureOledDeviceType();
         var props = await discovery.DiscoverAsync(corePropsPath, cancellationToken);
         _engineBaseUri = new Uri($"http://{props.Address.TrimEnd('/')}/", UriKind.Absolute);
 
-        await PostAsync("game_metadata", new Dictionary<string, object?>
+        var metadata = await PostAsync("game_metadata", new Dictionary<string, object?>
         {
             ["game"] = _options.Game,
             ["game_display_name"] = _options.DisplayName,
             ["developer"] = _options.Developer
         }, cancellationToken);
 
-        await PostAsync("bind_game_event", new Dictionary<string, object?>
+        var screenHandler = await PostAsync("bind_game_event", new Dictionary<string, object?>
         {
             ["game"] = _options.Game,
             ["event"] = _options.Event,
@@ -33,7 +34,7 @@ public sealed class GameSenseClient(
             {
                 new Dictionary<string, object?>
                 {
-                    ["device-type"] = "screened",
+                    ["device-type"] = _options.ScreenDeviceType,
                     ["mode"] = "screen",
                     ["zone"] = "one",
                     ["datas"] = new[]
@@ -47,9 +48,11 @@ public sealed class GameSenseClient(
                 }
             }
         }, cancellationToken);
+
+        return new GameSenseRegistrationResult(metadata, screenHandler);
     }
 
-    public Task ShowTextAsync(string text, CancellationToken cancellationToken = default)
+    public Task<GameSenseHttpResult> ShowTextAsync(string text, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(text);
         EnsureRegistered();
@@ -64,14 +67,30 @@ public sealed class GameSenseClient(
         }, cancellationToken);
     }
 
-    private async Task PostAsync(string endpoint, object payload, CancellationToken cancellationToken)
+    public Task<GameSenseHttpResult> SendHeartbeatAsync(CancellationToken cancellationToken = default)
+    {
+        EnsureRegistered();
+        return PostAsync("game_heartbeat", new Dictionary<string, object?>
+        {
+            ["game"] = _options.Game
+        }, cancellationToken);
+    }
+
+    private async Task<GameSenseHttpResult> PostAsync(string endpoint, object payload, CancellationToken cancellationToken)
     {
         EnsureRegistered();
         try
         {
             using var response = await httpClient.PostAsJsonAsync(new Uri(_engineBaseUri!, endpoint), payload, cancellationToken);
             if (!response.IsSuccessStatusCode)
-                throw new GameSenseUnavailableException($"GameSense endpoint '{endpoint}' returned {(int)response.StatusCode}.");
+            {
+                var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
+                throw new GameSenseUnavailableException(
+                    $"GameSense endpoint '{endpoint}' returned {(int)response.StatusCode} {response.ReasonPhrase}. " +
+                    $"Response: {responseBody}");
+            }
+
+            return new GameSenseHttpResult(endpoint, response.StatusCode);
         }
         catch (GameSenseUnavailableException)
         {
@@ -81,6 +100,12 @@ public sealed class GameSenseClient(
         {
             throw new GameSenseUnavailableException("GameSense Engine could not be reached.", exception);
         }
+    }
+
+    private void EnsureOledDeviceType()
+    {
+        if (_options.ScreenDeviceType is not ("screened" or "screened-128x40"))
+            throw new ArgumentException("Only screened or screened-128x40 OLED device types are allowed.", nameof(_options));
     }
 
     private void EnsureRegistered()

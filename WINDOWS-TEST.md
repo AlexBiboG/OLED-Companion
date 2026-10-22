@@ -15,8 +15,11 @@
    - SteelSeries Engine gefunden
    - GameSense-Endpunkt erreichbar
    - Registrierung erfolgreich
+   - OLED-Handler `screened-128x40` registriert
    - OLED-Event gesendet
 4. Auf dem OLED sollte `OLED COMPANION` erscheinen.
+5. Das Programm geöffnet lassen. Alle fünf Sekunden muss ein erfolgreicher GameSense-Heartbeat erscheinen.
+6. Mit `Strg+C` beenden; die Anwendung meldet das saubere Ende des Testmodus.
 
 Wenn `coreProps.json` nicht gefunden wird, SteelSeries GG vollständig starten und den Test wiederholen. Bei einem erreichbaren Endpunkt mit fehlgeschlagener Registrierung bitte die vollständige Konsolenausgabe sichern.
 
