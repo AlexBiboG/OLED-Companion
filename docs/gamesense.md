@@ -6,7 +6,8 @@ Die Implementierung folgt der offiziellen [SteelSeries GameSense SDK-Dokumentati
 2. `/game_metadata` registriert den Anzeigenamen.
 3. `/bind_game_event` bindet ausschließlich einen `screened-128x40`-OLED-Handler mit `context-frame-key: custom-text`. Dieser Gerätetyp entspricht laut offizieller Zonenliste der Apex-Pro-TKL-Familie.
 4. `/game_event` sendet den Text im `frame`-Kontext.
-5. `/game_heartbeat` wird im Testmodus alle fünf Sekunden gesendet.
+5. Der Diagnosemodus unterstützt drei getrennte Screen-Handler-Tests: statischer `prefix`/leerer `arg` (A), dynamischer `context-frame-key`-Text (B) und numerischer `data.value` (C).
+6. `/game_heartbeat` hält den statischen Testmodus (A) alle zehn Sekunden aktiv; B und C senden alle fünf Sekunden ein neues Event.
 
 Die HTTP-Schicht verwendet ausschließlich `HttpClient`; es gibt keine HID-, Speicher- oder Anti-Cheat-Anbindung.
 Es werden keine RGB-, Beleuchtungs-, Prism- oder Tastenzonen verwendet.

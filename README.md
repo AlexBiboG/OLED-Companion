@@ -21,8 +21,10 @@ Für Entwicklung und Tests: .NET SDK 10. Für den realen Hardwaretest: Windows 1
 ```bash
 dotnet restore OledCompanion.sln
 dotnet test OledCompanion.sln --configuration Release
-dotnet run --project src/OledCompanion.App/OledCompanion.App.csproj
+dotnet run --project src/OledCompanion.App/OledCompanion.App.csproj -- B
 ```
+
+Der Diagnosemodus akzeptiert `A` (statischer Handlertext), `B` (dynamischer `context-frame-key`-Text) oder `C` (numerischer `data.value`).
 
 Für einen schlanken self-contained Windows-x64-Publish:
 

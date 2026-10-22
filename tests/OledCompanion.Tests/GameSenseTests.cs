@@ -98,6 +98,57 @@ public sealed class GameSenseTests
         File.Delete(path);
     }
 
+    [Fact]
+    public async Task AllDiagnosticModesUseDistinctOledOnlyPayloads()
+    {
+        foreach (var mode in Enum.GetValues<OledDiagnosticMode>())
+        {
+            var handler = new RecordingHandler();
+            using var httpClient = new HttpClient(handler);
+            var path = Path.GetTempFileName();
+            await File.WriteAllTextAsync(path, "{\"address\":\"127.0.0.1:51248\"}");
+
+            var gameSense = new GameSenseClient(httpClient, new CorePropsDiscovery());
+            var registration = await gameSense.RegisterDiagnosticAsync(mode, path);
+            var eventResult = await gameSense.SendDiagnosticEventAsync(mode, 7);
+
+            Assert.Equal(HttpStatusCode.OK, registration.ScreenHandler.StatusCode);
+            Assert.Equal(HttpStatusCode.OK, eventResult.StatusCode);
+            using var binding = JsonDocument.Parse(handler.Bodies[1]);
+            var handlerJson = binding.RootElement.GetProperty("handlers")[0];
+            Assert.Equal("screened-128x40", handlerJson.GetProperty("device-type").GetString());
+            Assert.Equal("screen", handlerJson.GetProperty("mode").GetString());
+            Assert.Equal("one", handlerJson.GetProperty("zone").GetString());
+            Assert.DoesNotContain("rgb", handlerJson.GetRawText(), StringComparison.OrdinalIgnoreCase);
+
+            using var eventPayload = JsonDocument.Parse(handler.Bodies[2]);
+            Assert.Equal(mode switch
+            {
+                OledDiagnosticMode.StaticPrefix => "OLED_DIAG_A",
+                OledDiagnosticMode.DynamicContext => "OLED_DIAG_B",
+                OledDiagnosticMode.NumericValue => "OLED_DIAG_C",
+                _ => ""
+            }, eventPayload.RootElement.GetProperty("event").GetString());
+
+            var data = eventPayload.RootElement.GetProperty("data");
+            switch (mode)
+            {
+                case OledDiagnosticMode.StaticPrefix:
+                    Assert.Equal(1, data.GetProperty("value").GetInt32());
+                    Assert.DoesNotContain("frame", data.GetRawText(), StringComparison.OrdinalIgnoreCase);
+                    break;
+                case OledDiagnosticMode.DynamicContext:
+                    Assert.Equal("B DYNAMIC 007", data.GetProperty("frame").GetProperty("diagnostic-text").GetString());
+                    break;
+                case OledDiagnosticMode.NumericValue:
+                    Assert.Equal(707, data.GetProperty("value").GetInt32());
+                    break;
+            }
+
+            File.Delete(path);
+        }
+    }
+
     private sealed class RecordingHandler : HttpMessageHandler
     {
         public List<string> Paths { get; } = [];
