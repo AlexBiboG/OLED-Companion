@@ -11,6 +11,7 @@ Die aktuelle Demo erkennt SteelSeries Engine über `coreProps.json`, registriert
 - `src/OledCompanion.Modules` – Erweiterungspunkt für zukünftige Spielmodule, zunächst Valorant
 - `tests/OledCompanion.Tests` – Mock-basierte Payload-, Discovery- und Fehlerfalltests
 - `docs/gamesense.md` – Beschreibung der GameSense-Anbindung
+- `docs/oled-service.md` – Schnittstelle und Verhalten des zentralen OLED-Dienstes
 
 ## Voraussetzungen
 
@@ -25,6 +26,8 @@ dotnet run --project src/OledCompanion.App/OledCompanion.App.csproj -- B
 ```
 
 Der Diagnosemodus akzeptiert `A` (statischer Handlertext), `B` (dynamischer `context-frame-key`-Text) oder `C` (numerischer `data.value`).
+
+Zukünftige Module verwenden `OledDisplayService` für deduplizierte Textaktualisierungen, zeitgesteuerte Anzeigen und automatische GameSense-Reconnects. Die Schnittstelle ist in [docs/oled-service.md](docs/oled-service.md) dokumentiert.
 
 Für einen schlanken self-contained Windows-x64-Publish:
 
