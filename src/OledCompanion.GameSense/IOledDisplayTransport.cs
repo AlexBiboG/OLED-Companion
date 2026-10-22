@@ -9,7 +9,16 @@ public interface IOledDisplayTransport
     Task<GameSenseHttpResult> SendHeartbeatAsync(CancellationToken cancellationToken = default);
 }
 
-public sealed class GameSenseOledDisplayTransport(GameSenseClient client) : IOledDisplayTransport
+public interface IOledFrameDisplayTransport
+{
+    Task<GameSenseRegistrationResult> ConnectFrameAsync(CancellationToken cancellationToken = default);
+
+    Task<GameSenseHttpResult> SendFrameAsync(
+        IReadOnlyList<byte> frame,
+        CancellationToken cancellationToken = default);
+}
+
+public sealed class GameSenseOledDisplayTransport(GameSenseClient client) : IOledDisplayTransport, IOledFrameDisplayTransport
 {
     public Task<GameSenseRegistrationResult> ConnectAsync(CancellationToken cancellationToken = default) =>
         client.RegisterAsync(cancellationToken: cancellationToken);
@@ -19,4 +28,12 @@ public sealed class GameSenseOledDisplayTransport(GameSenseClient client) : IOle
 
     public Task<GameSenseHttpResult> SendHeartbeatAsync(CancellationToken cancellationToken = default) =>
         client.SendHeartbeatAsync(cancellationToken);
+
+    public Task<GameSenseRegistrationResult> ConnectFrameAsync(CancellationToken cancellationToken = default) =>
+        client.RegisterBitmapAsync(cancellationToken: cancellationToken);
+
+    public Task<GameSenseHttpResult> SendFrameAsync(
+        IReadOnlyList<byte> frame,
+        CancellationToken cancellationToken = default) =>
+        client.ShowFrameAsync(frame, cancellationToken);
 }

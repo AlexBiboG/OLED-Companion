@@ -25,6 +25,28 @@ public sealed class ModuleTests
     }
 
     [Fact]
+    public async Task WidgetSettingsRoundTripPreservesLayout()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"oled-companion-widgets-{Guid.NewGuid():N}.json");
+        try
+        {
+            var settings = new CompanionSettings(
+                WidgetLayout: "minimal",
+                ValorantWidgets: [new WidgetConfiguration("status", "status", 1, 1, 120, 7)]);
+            var store = new SettingsStore(path);
+            await store.SaveAsync(settings);
+            var loaded = await store.LoadAsync();
+
+            Assert.Equal("minimal", loaded.WidgetLayout);
+            Assert.Single(loaded.ValorantWidgets!);
+        }
+        finally
+        {
+            if (File.Exists(path)) File.Delete(path);
+        }
+    }
+
+    [Fact]
     public async Task ClockModuleSendsInitialValueAndCanBeStoppedAndStartedAgain()
     {
         var display = new FakeDisplay();

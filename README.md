@@ -13,6 +13,7 @@ Die aktuelle Demo erkennt SteelSeries Engine über `coreProps.json`, registriert
 - `tests/OledCompanion.Tests` – Mock-basierte Payload-, Discovery- und Fehlerfalltests
 - `docs/gamesense.md` – Beschreibung der GameSense-Anbindung
 - `docs/oled-service.md` – Schnittstelle und Verhalten des zentralen OLED-Dienstes
+- `THIRD-PARTY-NOTICES.md` – Lizenzhinweis für die optionale Sensorbibliothek
 
 Die Tray-App verwendet WPF mit dem .NET-10-Windows-Desktop-Targeting und das im Framework enthaltene
 WinForms-`NotifyIcon`. Dadurch ist keine zusätzliche UI-Abhängigkeit erforderlich. Der Cross-Build unter
@@ -42,6 +43,23 @@ standardmäßig alle drei Sekunden, registriert `VALORANT-Win64-Shipping.exe` al
 `VALORANT ACTIVE`. Nach dem Prozessende wird das Uhr-Modul wieder aktiviert. Registrierungen werden
 nach Priorität und anschließend nach ID deterministisch ausgewählt. Eigene Prozessnamen können lokal
 in `settings.json` über `GameProcesses` ergänzt werden.
+
+## Phase-9-Module
+
+Die wiederverwendbare `OledCanvas`-Schicht rendert 128×40-Monochromframes mit Text, Linien,
+Rechtecken und Fortschrittsbalken. Der GameSense-Bitmap-Pfad registriert ausschließlich
+`screened-128x40`, `mode: screen`, `zone: one` und sendet `image-data-128x40` mit 640 Bytes.
+Die bisherige Textansteuerung bleibt als Fallback erhalten. Die Tray-Vorschau verwendet dieselben
+Frames mit nearest-neighbor Skalierung.
+
+Das Valorant-Dashboard aktualisiert Sensorwerte standardmäßig etwa alle zwei Sekunden. Der optionale
+`LibreHardwareMonitorLib`-Provider liest CPU-/GPU-Temperaturen; fehlende oder fehlerhafte Sensoren
+werden als `N/A` dargestellt. Die Bibliothek ist MPL-2.0-lizenziert; Details stehen in
+[THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
+
+Die Audioanalyse ist ein strikt lokaler WAV-Prototyp. Sie verwendet PCM16-Dateien und einen einfachen
+RMS-Burst-Erkenner. Es gibt keine WASAPI-Aufnahme, keine Cloud-API und keine Verbindung zu Valorant
+oder zum Live-OLED-Dashboard.
 
 Für einen schlanken self-contained Windows-x64-Publish:
 

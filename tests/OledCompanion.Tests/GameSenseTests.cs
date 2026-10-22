@@ -52,6 +52,38 @@ public sealed class GameSenseTests
     }
 
     [Fact]
+    public async Task BitmapRegistrationUses640ByteOledFrame()
+    {
+        var handler = new RecordingHandler();
+        using var client = new HttpClient(handler);
+        var corePropsPath = Path.GetTempFileName();
+        await File.WriteAllTextAsync(corePropsPath, "{\"address\":\"127.0.0.1:51248\"}");
+        var gameSense = new GameSenseClient(client, new CorePropsDiscovery());
+        var frame = Enumerable.Repeat((byte)0xAA, 640).ToArray();
+
+        await gameSense.RegisterBitmapAsync(corePropsPath);
+        await gameSense.ShowFrameAsync(frame);
+
+        using var binding = JsonDocument.Parse(handler.Bodies[1]);
+        var screenHandler = binding.RootElement.GetProperty("handlers")[0];
+        Assert.Equal("screened-128x40", screenHandler.GetProperty("device-type").GetString());
+        Assert.False(screenHandler.GetProperty("datas")[0].GetProperty("has-text").GetBoolean());
+        using var eventPayload = JsonDocument.Parse(handler.Bodies[2]);
+        Assert.Equal(640, eventPayload.RootElement.GetProperty("data").GetProperty("frame").GetProperty("image-data-128x40").GetArrayLength());
+        Assert.DoesNotContain("rgb", binding.RootElement.GetRawText(), StringComparison.OrdinalIgnoreCase);
+        File.Delete(corePropsPath);
+    }
+
+    [Fact]
+    public async Task InvalidBitmapSizeIsRejected()
+    {
+        using var client = new HttpClient(new RecordingHandler());
+        var gameSense = new GameSenseClient(client, new CorePropsDiscovery());
+
+        await Assert.ThrowsAsync<ArgumentException>(() => gameSense.ShowFrameAsync(new byte[639]));
+    }
+
+    [Fact]
     public async Task HttpFailureIsReportedAsUnavailable()
     {
         var handler = new RecordingHandler { ExceptionToThrow = new HttpRequestException("connection refused") };

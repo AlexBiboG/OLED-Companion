@@ -61,3 +61,18 @@ Prozessen gewinnt die höhere Priorität, bei gleicher Priorität die alphabetis
 Die Erkennung verwendet keine Spielspeicherzugriffe, Hooks, DLL-Injection, Vanguard-Manipulation oder
 Overwolf. Ein Windows-Hardwaretest ist unter Xubuntu nicht simuliert; Prozess- und Modulwechsel werden
 automatisiert mit Test-Doubles geprüft.
+
+## Grafisches Valorant-Dashboard (Phase 9)
+
+Die Tray-App rendert das Dashboard als 128×40-Monochrombild mit Status, Uhr sowie CPU-/GPU-Feldern.
+Die Bilddaten werden über `image-data-128x40` an GameSense übertragen; die Textanzeige bleibt als
+Fallback erhalten. Im Fenster zeigt die Pixelvorschau exakt denselben Frame, der für das OLED erzeugt
+wird. Layouts `valorant-standard` und `minimal` sind auswählbar.
+
+CPU-/GPU-Werte stammen optional aus LibreHardwareMonitorLib. Sensorberechtigungen und tatsächlich
+verfügbare Sensoren hängen von Windows-Hardware und Hersteller ab; bei fehlenden Werten erscheint
+`N/A`. Die Audioanalyse ist nur über lokal ausgewählte WAV-Dateien vorgesehen und wird während
+Valorant deaktiviert.
+
+Wichtig: Die Bitmap-Ansteuerung und die Sensorwerte wurden in Xubuntu nur automatisiert bzw. cross-
+kompiliert geprüft. Sie sind auf der Apex Pro TKL Gen 3 unter Windows 11 separat zu verifizieren.

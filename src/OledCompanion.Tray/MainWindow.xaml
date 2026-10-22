@@ -18,7 +18,10 @@
             <StackPanel Grid.Row="2">
                 <TextBlock Text="OLED-Vorschau" Foreground="#9EA7B3"/>
                 <Border Background="#08090B" CornerRadius="6" Padding="16" Margin="0,6,0,16">
-                    <TextBlock Text="{Binding PreviewText}" FontFamily="Consolas" FontSize="26" HorizontalAlignment="Center"/>
+                    <StackPanel>
+                        <Image Source="{Binding PreviewImage}" Width="384" Height="120" Stretch="Fill" RenderOptions.BitmapScalingMode="NearestNeighbor"/>
+                        <TextBlock Text="{Binding PreviewText}" FontFamily="Consolas" FontSize="12" HorizontalAlignment="Center" Margin="0,6,0,0"/>
+                    </StackPanel>
                 </Border>
                 <TextBlock Text="Aktives Modul" Foreground="#9EA7B3"/>
                 <TextBlock Text="{Binding ActiveModuleText}" Margin="0,3,0,12"/>
@@ -28,6 +31,11 @@
                 <CheckBox Content="Hintergrundbetrieb" IsChecked="{Binding BackgroundEnabled}" Margin="0,8,0,0"/>
                 <CheckBox Content="Mit Windows starten" IsChecked="{Binding StartWithWindows}" Margin="0,8,0,0"/>
                 <CheckBox Content="Automatische Spielerkennung" IsChecked="{Binding AutomaticGameDetection}" Margin="0,8,0,0"/>
+                <CheckBox Content="Valorant-Widgets aktiv" IsChecked="{Binding WidgetsEnabled}" Margin="0,8,0,0"/>
+                <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                    <TextBlock Text="Layout" Width="70" VerticalAlignment="Center"/>
+                    <ComboBox Width="150" ItemsSource="{Binding WidgetLayouts}" SelectedItem="{Binding WidgetLayout}"/>
+                </StackPanel>
             </StackPanel>
             <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,18,0,0">
                 <ComboBox Width="80" ItemsSource="{Binding DiagnosticModes}" SelectedItem="{Binding DiagnosticMode}" Margin="0,0,8,0"/>

@@ -59,6 +59,8 @@ public sealed class GameDetectionService : IAsyncDisposable
     private readonly TimeSpan _interval;
     private readonly Func<bool> _clockEnabled;
     private readonly Action<string>? _logger;
+    private readonly Func<DetectedGame, CancellationToken, Task>? _activateModule;
+    private readonly Func<CancellationToken, Task>? _restoreModule;
     private CancellationTokenSource? _runCancellation;
     private Task? _runTask;
     private DetectedGame? _activeGame;
@@ -70,7 +72,9 @@ public sealed class GameDetectionService : IAsyncDisposable
         IEnumerable<DetectedGame> registrations,
         Func<bool> clockEnabled,
         TimeSpan? interval = null,
-        Action<string>? logger = null)
+        Action<string>? logger = null,
+        Func<DetectedGame, CancellationToken, Task>? activateModule = null,
+        Func<CancellationToken, Task>? restoreModule = null)
     {
         _display = display;
         _clock = clock;
@@ -79,6 +83,8 @@ public sealed class GameDetectionService : IAsyncDisposable
         _clockEnabled = clockEnabled;
         _interval = interval ?? TimeSpan.FromSeconds(3);
         _logger = logger;
+        _activateModule = activateModule;
+        _restoreModule = restoreModule;
         if (_registrations.Count == 0)
             throw new ArgumentException("At least one game registration is required.", nameof(registrations));
     }
@@ -135,15 +141,23 @@ public sealed class GameDetectionService : IAsyncDisposable
 
         if (selected is null)
         {
-            await RestoreClockAsync(cancellationToken);
+            if (_restoreModule is not null)
+                await _restoreModule(cancellationToken);
+            else
+                await RestoreClockAsync(cancellationToken);
             _logger?.Invoke("Spielerkennung: kein registriertes Spiel; Uhr-Modul wiederhergestellt.");
         }
         else
         {
             try
             {
-                await _clock.StopAsync();
-                await _display.SetModuleTextAsync(selected.ModuleId, selected.DisplayText, cancellationToken);
+                if (_activateModule is not null)
+                    await _activateModule(selected, cancellationToken);
+                else
+                {
+                    await _clock.StopAsync();
+                    await _display.SetModuleTextAsync(selected.ModuleId, selected.DisplayText, cancellationToken);
+                }
             }
             catch (Exception exception)
             {

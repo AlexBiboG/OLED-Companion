@@ -9,7 +9,10 @@ public sealed record CompanionSettings(
     bool ClockModuleEnabled = true,
     string DiagnosticMode = "B",
     bool AutomaticGameDetection = true,
-    IReadOnlyList<GameProcessConfiguration>? GameProcesses = null);
+    IReadOnlyList<GameProcessConfiguration>? GameProcesses = null,
+    bool WidgetsEnabled = true,
+    string WidgetLayout = "valorant-standard",
+    IReadOnlyList<WidgetConfiguration>? ValorantWidgets = null);
 
 public sealed record GameProcessConfiguration(
     string Id,

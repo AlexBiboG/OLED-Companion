@@ -16,6 +16,8 @@ public sealed class OledDisplayService(
     private Task? _heartbeatTask;
     private bool _connected;
     private string? _currentText;
+    private byte[]? _currentFrame;
+    private bool _frameMode;
     private string _activeModule = "default";
     private bool _disposed;
 
@@ -24,6 +26,8 @@ public sealed class OledDisplayService(
     public string? CurrentText => _currentText;
 
     public string ActiveModule => _activeModule;
+
+    public IReadOnlyList<byte>? CurrentFrame => _currentFrame;
 
     public async Task StartAsync(CancellationToken cancellationToken = default)
     {
@@ -71,8 +75,13 @@ public sealed class OledDisplayService(
 
             // Keep the desired state even while GameSense is offline. The reconnect
             // loop will replay this latest value after registration succeeds.
+            var modeChanged = _frameMode;
             _activeModule = moduleId;
             _currentText = text;
+            _currentFrame = null;
+            _frameMode = false;
+            if (modeChanged)
+                _connected = false;
 
             try
             {
@@ -82,6 +91,47 @@ public sealed class OledDisplayService(
             {
                 _connected = false;
                 Log($"OLED: Update vorübergehend nicht gesendet; letzter Text bleibt vorgemerkt -> {exception.Message}");
+            }
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
+    public async Task SetFrameAsync(
+        string moduleId,
+        IReadOnlyList<byte> frame,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(moduleId);
+        if (frame.Count != 640)
+            throw new ArgumentException("A 128x40 OLED frame must contain exactly 640 bytes.", nameof(frame));
+        if (transport is not IOledFrameDisplayTransport)
+            throw new InvalidOperationException("The configured OLED transport does not support bitmap frames.");
+        ThrowIfDisposed();
+
+        await _gate.WaitAsync(cancellationToken);
+        try
+        {
+            if (_frameMode && _activeModule == moduleId && _currentFrame is not null && _currentFrame.SequenceEqual(frame))
+                return;
+
+            var modeChanged = !_frameMode;
+            _activeModule = moduleId;
+            _currentText = null;
+            _currentFrame = frame.ToArray();
+            _frameMode = true;
+            if (modeChanged)
+                _connected = false;
+            try
+            {
+                await SendFrameWithReconnectLockedAsync(_currentFrame, cancellationToken);
+            }
+            catch (GameSenseUnavailableException exception) when (exception.IsTransient)
+            {
+                _connected = false;
+                Log($"OLED: Grafik-Update vorübergehend nicht gesendet -> {exception.Message}");
             }
         }
         finally
@@ -263,10 +313,26 @@ public sealed class OledDisplayService(
         Log(_connected ? "OLED: Reconnect zu GameSense ..." : "OLED: Verbindung zu GameSense ...");
         try
         {
-            await transport.ConnectAsync(cancellationToken);
+            if (_frameMode)
+            {
+                if (transport is not IOledFrameDisplayTransport frameTransport)
+                    throw new InvalidOperationException("The configured OLED transport does not support bitmap frames.");
+                await frameTransport.ConnectFrameAsync(cancellationToken);
+            }
+            else
+            {
+                await transport.ConnectAsync(cancellationToken);
+            }
             _connected = true;
             Log("OLED: GameSense-Verbindung hergestellt.");
-            if (restoreCurrentText && _currentText is not null)
+            if (restoreCurrentText && _frameMode && _currentFrame is not null)
+            {
+                if (transport is not IOledFrameDisplayTransport frameTransport)
+                    throw new InvalidOperationException("The configured OLED transport does not support bitmap frames.");
+                await frameTransport.SendFrameAsync(_currentFrame, cancellationToken);
+                Log("OLED: letzter Grafik-Frame wiederhergestellt.");
+            }
+            else if (restoreCurrentText && _currentText is not null)
             {
                 await transport.SendTextAsync(_currentText, cancellationToken);
                 Log($"OLED: letzter Text wiederhergestellt -> {_currentText}");
@@ -278,6 +344,25 @@ public sealed class OledDisplayService(
             Log($"OLED: Verbindung fehlgeschlagen -> {exception.Message}");
             throw;
         }
+    }
+
+    private async Task SendFrameWithReconnectLockedAsync(
+        IReadOnlyList<byte> frame,
+        CancellationToken cancellationToken)
+    {
+        if (!_connected)
+            await ConnectLockedAsync(cancellationToken, restoreCurrentText: false);
+
+        try
+        {
+            await ((IOledFrameDisplayTransport)transport).SendFrameAsync(frame, cancellationToken);
+        }
+        catch (GameSenseUnavailableException exception) when (exception.IsTransient)
+        {
+            _connected = false;
+            throw;
+        }
+        Log("OLED: Grafik-Frame gesendet.");
     }
 
     private void ThrowIfDisposed()

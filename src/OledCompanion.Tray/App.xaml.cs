@@ -18,6 +18,7 @@ public partial class App : System.Windows.Application
     private OledDisplayService? _display;
     private OledClockModule? _clock;
     private GameDetectionService? _detection;
+    private ValorantDashboardModule? _dashboard;
     private HttpClient? _httpClient;
     private CompanionSettings _settings = new();
     private bool _allowExit;
@@ -42,6 +43,14 @@ public partial class App : System.Windows.Application
         _clock = new OledClockModule(_display, Log);
         if (_settings.ClockModuleEnabled)
             await _clock.StartAsync();
+        var sensors = new LibreHardwareMonitorSensorProvider();
+        var dashboardPage = _settings.ValorantWidgets is { Count: > 0 }
+            ? new WidgetPageConfiguration(_settings.WidgetLayout, _settings.ValorantWidgets)
+            : _settings.WidgetLayout.Equals("minimal", StringComparison.OrdinalIgnoreCase)
+                ? ValorantDashboardModule.MinimalPage
+                : ValorantDashboardModule.StandardPage;
+        var dashboard = new ValorantDashboardModule(_display, sensors, dashboardPage, Log);
+        _dashboard = dashboard;
 
         var processConfigurations = _settings.GameProcesses is { Count: > 0 }
             ? _settings.GameProcesses
@@ -66,7 +75,21 @@ public partial class App : System.Windows.Application
                 $"game:{configuration.Id}",
                 configuration.DisplayText)),
             () => _settings.ClockModuleEnabled,
-            logger: Log);
+            logger: Log,
+            activateModule: async (_, cancellationToken) =>
+            {
+                await _clock.StopAsync();
+                if (_settings.WidgetsEnabled)
+                    await dashboard.StartAsync(cancellationToken);
+                else
+                    await _display.SetModuleTextAsync("game:valorant", "VALORANT ACTIVE", cancellationToken);
+            },
+            restoreModule: async cancellationToken =>
+            {
+                await dashboard.StopAsync();
+                if (_settings.ClockModuleEnabled)
+                    await _clock.StartAsync(cancellationToken);
+            });
         await _detection.SetEnabledAsync(_settings.AutomaticGameDetection);
         await _detection.StartAsync();
 
@@ -109,7 +132,15 @@ public partial class App : System.Windows.Application
         _settings = settings;
         await new SettingsStore(SettingsPath()).SaveAsync(settings);
         StartupRegistration.SetEnabled(settings.StartWithWindows);
+        _dashboard?.SetPage(CreateDashboardPage(settings));
     }
+
+    private static WidgetPageConfiguration CreateDashboardPage(CompanionSettings settings) =>
+        settings.ValorantWidgets is { Count: > 0 }
+            ? new WidgetPageConfiguration(settings.WidgetLayout, settings.ValorantWidgets)
+            : settings.WidgetLayout.Equals("minimal", StringComparison.OrdinalIgnoreCase)
+                ? ValorantDashboardModule.MinimalPage
+                : ValorantDashboardModule.StandardPage;
 
     private async Task RunDiagnosticAsync(OledDiagnosticMode mode)
     {
@@ -138,6 +169,8 @@ public partial class App : System.Windows.Application
         _trayIcon?.Dispose();
         if (_detection is not null)
             await _detection.DisposeAsync();
+        if (_dashboard is not null)
+            await _dashboard.DisposeAsync();
         if (_clock is not null)
             await _clock.DisposeAsync();
         if (_display is not null)

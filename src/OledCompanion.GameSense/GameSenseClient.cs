@@ -26,6 +26,22 @@ public sealed class GameSenseClient(
             corePropsPath,
             cancellationToken);
 
+    public Task<GameSenseRegistrationResult> RegisterBitmapAsync(
+        string? corePropsPath = null,
+        CancellationToken cancellationToken = default) =>
+        RegisterEventAsync(
+            "OLED_GRAPHICS",
+            BuildScreenHandler(new Dictionary<string, object?>
+            {
+                ["has-text"] = false,
+                ["context-frame-key"] = "image-data-128x40"
+            }),
+            minValue: 0,
+            maxValue: 1,
+            valueOptional: true,
+            corePropsPath,
+            cancellationToken);
+
     public Task<GameSenseRegistrationResult> RegisterDiagnosticAsync(
         OledDiagnosticMode mode,
         string? corePropsPath = null,
@@ -53,6 +69,26 @@ public sealed class GameSenseClient(
             ["data"] = new Dictionary<string, object?>
             {
                 ["frame"] = new Dictionary<string, string> { ["custom-text"] = text }
+            }
+        }, cancellationToken);
+    }
+
+    public Task<GameSenseHttpResult> ShowFrameAsync(
+        IReadOnlyList<byte> frame,
+        CancellationToken cancellationToken = default)
+    {
+        ValidateFrame(frame);
+        EnsureRegistered();
+        return PostAsync("game_event", new Dictionary<string, object?>
+        {
+            ["game"] = _options.Game,
+            ["event"] = "OLED_GRAPHICS",
+            ["data"] = new Dictionary<string, object?>
+            {
+                ["frame"] = new Dictionary<string, IReadOnlyList<byte>>
+                {
+                    ["image-data-128x40"] = frame
+                }
             }
         }, cancellationToken);
     }
@@ -150,6 +186,13 @@ public sealed class GameSenseClient(
             ["zone"] = "one",
             ["datas"] = new[] { frame }
         };
+
+    private static void ValidateFrame(IReadOnlyList<byte> frame)
+    {
+        ArgumentNullException.ThrowIfNull(frame);
+        if (frame.Count != 640)
+            throw new ArgumentException("A 128x40 OLED frame must contain exactly 640 bytes.", nameof(frame));
+    }
 
     private DiagnosticDefinition GetDiagnosticDefinition(OledDiagnosticMode mode) => mode switch
     {

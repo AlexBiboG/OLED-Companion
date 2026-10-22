@@ -11,3 +11,9 @@ Die Implementierung folgt der offiziellen [SteelSeries GameSense SDK-Dokumentati
 
 Die HTTP-Schicht verwendet ausschließlich `HttpClient`; es gibt keine HID-, Speicher- oder Anti-Cheat-Anbindung.
 Es werden keine RGB-, Beleuchtungs-, Prism- oder Tastenzonen verwendet.
+## Bitmap-Frames
+
+Für die grafische Ausgabe verwendet OLED Companion ausschließlich den Screen-Handler mit
+`device-type: screened-128x40`, `mode: screen` und `zone: one`. Der Event-Frame enthält den
+dokumentierten Schlüssel `image-data-128x40` mit genau 640 zeilenweise MSB-first gepackten Bytes.
+Die Textregistrierung und Text-Events bleiben als Fallback unverändert.

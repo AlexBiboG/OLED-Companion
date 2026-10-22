@@ -99,10 +99,29 @@ public sealed class OledDisplayServiceTests
         Assert.Contains("connect", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
-    private sealed class FakeTransport : IOledDisplayTransport
+    [Fact]
+    public async Task IdenticalBitmapIsNotSentTwice()
+    {
+        var transport = new FakeTransport();
+        await using var service = new OledDisplayService(transport);
+        var frame = new byte[640];
+        frame[0] = 0x80;
+
+        await service.StartAsync();
+        await service.SetFrameAsync("graphics", frame);
+        await service.SetFrameAsync("graphics", frame);
+
+        Assert.Single(transport.Frames);
+        Assert.Equal(1, transport.FrameConnectCount);
+        Assert.Equal(640, service.CurrentFrame?.Count);
+    }
+
+    private sealed class FakeTransport : IOledDisplayTransport, IOledFrameDisplayTransport
     {
         public List<string> Texts { get; } = [];
+        public List<byte[]> Frames { get; } = [];
         public int ConnectCount { get; private set; }
+        public int FrameConnectCount { get; private set; }
         public int HeartbeatCount { get; private set; }
         public bool FailConnect { get; init; }
         public bool FailNextHeartbeat { get; set; }
@@ -143,6 +162,19 @@ public sealed class OledDisplayServiceTests
                 throw Http500("game_heartbeat");
             }
             return Task.FromResult(Result("game_heartbeat"));
+        }
+
+        public Task<GameSenseRegistrationResult> ConnectFrameAsync(CancellationToken cancellationToken = default)
+        {
+            FrameConnectCount++;
+            ConnectCount++;
+            return Task.FromResult(new GameSenseRegistrationResult(Result("game_metadata"), Result("bind_game_event")));
+        }
+
+        public Task<GameSenseHttpResult> SendFrameAsync(IReadOnlyList<byte> frame, CancellationToken cancellationToken = default)
+        {
+            Frames.Add(frame.ToArray());
+            return Task.FromResult(Result("game_event"));
         }
 
         private static GameSenseHttpResult Result(string endpoint) =>
