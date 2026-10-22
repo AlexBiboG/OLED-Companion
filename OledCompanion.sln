@@ -10,6 +10,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OledCompanion.Modules", "sr
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OledCompanion.Tests", "tests\OledCompanion.Tests\OledCompanion.Tests.csproj", "{D2FA2B86-B10D-4088-A0C7-3C2150554304}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OledCompanion.Tray", "src\OledCompanion.Tray\OledCompanion.Tray.csproj", "{E3FB3C97-6FE6-4B7E-9C6B-8E7E5C06F3A1}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -32,5 +34,9 @@ Global
 		{D2FA2B86-B10D-4088-A0C7-3C2150554304}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D2FA2B86-B10D-4088-A0C7-3C2150554304}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D2FA2B86-B10D-4088-A0C7-3C2150554304}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E3FB3C97-6FE6-4B7E-9C6B-8E7E5C06F3A1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E3FB3C97-6FE6-4B7E-9C6B-8E7E5C06F3A1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E3FB3C97-6FE6-4B7E-9C6B-8E7E5C06F3A1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E3FB3C97-6FE6-4B7E-9C6B-8E7E5C06F3A1}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

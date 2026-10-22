@@ -33,3 +33,20 @@ Die Anwendung verwendet dabei `OledDisplayService` und zeigt `OLED READY` fünf 
 Wenn `coreProps.json` nicht gefunden wird, SteelSeries GG vollständig starten und den Test wiederholen. Bei einem erreichbaren Endpunkt mit fehlgeschlagener Registrierung bitte die vollständige Konsolenausgabe sichern.
 
 Die Anwendung verwendet ausschließlich die lokale GameSense-HTTP-Schnittstelle. Sie benötigt keine HID-Manipulation, keine Spielintegration und keine Administratorrechte.
+
+## Tray-App (Phase 7)
+
+Das separate self-contained Paket der Tray-App startet mit:
+
+```text
+OledCompanion.Tray.exe
+```
+
+Die App öffnet ein kompaktes dunkles WPF-Fenster und legt zusätzlich ein Icon im Windows-Tray an.
+Schließen blendet das Fenster aus; über das Tray-Kontextmenü kann die Anwendung beendet werden.
+Die Uhr ist standardmäßig aktiv und aktualisiert das OLED nur bei einer geänderten Minutenanzeige.
+Status, OLED-Vorschau, Modulaktivierung, Hintergrundbetrieb, Windows-Start und die Diagnosemodi A/B/C
+sind im Fenster verfügbar. Die Tray-App verwendet weiterhin ausschließlich GameSense-Screen-Handler.
+
+Der Build wurde unter Xubuntu cross-kompiliert. Die Tray-Oberfläche und das Verhalten des Windows-Trays
+müssen auf Windows 11 validiert werden; ein solcher Hardware- oder UI-Test wird auf Xubuntu nicht behauptet.

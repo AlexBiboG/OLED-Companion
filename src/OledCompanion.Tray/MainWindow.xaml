@@ -1,0 +1,35 @@
+<Window x:Class="OledCompanion.Tray.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="OLED Companion" Width="430" Height="330"
+        Background="#17191F" Foreground="#F5F7FA"
+        WindowStartupLocation="CenterScreen">
+    <Border Padding="22">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/><RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <TextBlock Text="OLED COMPANION" FontSize="22" FontWeight="SemiBold"/>
+            <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,8,0,18">
+                <Ellipse Width="10" Height="10" Fill="{Binding StatusBrush}" Margin="0,0,8,0"/>
+                <TextBlock Text="{Binding StatusText}" VerticalAlignment="Center"/>
+            </StackPanel>
+            <StackPanel Grid.Row="2">
+                <TextBlock Text="OLED-Vorschau" Foreground="#9EA7B3"/>
+                <Border Background="#08090B" CornerRadius="6" Padding="16" Margin="0,6,0,16">
+                    <TextBlock Text="{Binding PreviewText}" FontFamily="Consolas" FontSize="26" HorizontalAlignment="Center"/>
+                </Border>
+                <TextBlock Text="Aktives Modul" Foreground="#9EA7B3"/>
+                <TextBlock Text="{Binding ActiveModuleText}" Margin="0,3,0,12"/>
+                <CheckBox Content="Uhr-Modul aktiv" IsChecked="{Binding ClockEnabled}"/>
+                <CheckBox Content="Hintergrundbetrieb" IsChecked="{Binding BackgroundEnabled}" Margin="0,8,0,0"/>
+                <CheckBox Content="Mit Windows starten" IsChecked="{Binding StartWithWindows}" Margin="0,8,0,0"/>
+            </StackPanel>
+            <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,18,0,0">
+                <ComboBox Width="80" ItemsSource="{Binding DiagnosticModes}" SelectedItem="{Binding DiagnosticMode}" Margin="0,0,8,0"/>
+                <Button Content="Diagnose" Click="DiagnosticClick" Padding="14,6"/>
+            </StackPanel>
+        </Grid>
+    </Border>
+</Window>

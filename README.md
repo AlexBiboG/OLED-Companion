@@ -6,12 +6,18 @@ Die aktuelle Demo erkennt SteelSeries Engine über `coreProps.json`, registriert
 
 ## Architektur
 
-- `src/OledCompanion.App` – schlanke Konsolenanwendung und Windows-Testeinstiegspunkt
+- `src/OledCompanion.App` – schlanke Konsolenanwendung für A/B/C und `demo`
+- `src/OledCompanion.Tray` – native Windows-11-Tray-App mit WPF/MVVM und WinForms-NotifyIcon
 - `src/OledCompanion.GameSense` – Engine-Erkennung, HTTP-Kommunikation und OLED-Screen-Handler
 - `src/OledCompanion.Modules` – Erweiterungspunkt für zukünftige Spielmodule, zunächst Valorant
 - `tests/OledCompanion.Tests` – Mock-basierte Payload-, Discovery- und Fehlerfalltests
 - `docs/gamesense.md` – Beschreibung der GameSense-Anbindung
 - `docs/oled-service.md` – Schnittstelle und Verhalten des zentralen OLED-Dienstes
+
+Die Tray-App verwendet WPF mit dem .NET-10-Windows-Desktop-Targeting und das im Framework enthaltene
+WinForms-`NotifyIcon`. Dadurch ist keine zusätzliche UI-Abhängigkeit erforderlich. Der Cross-Build unter
+Xubuntu erfolgt mit `EnableWindowsTargeting=true`; die Anwendung wird als `WinExe` ohne dauerhaftes
+Konsolenfenster veröffentlicht.
 
 ## Voraussetzungen
 
@@ -42,5 +48,21 @@ dotnet publish src/OledCompanion.App/OledCompanion.App.csproj \
   -p:DebugType=None -p:DebugSymbols=false \
   -o ./publish
 ```
+
+Für die Tray-App lautet der Publish-Befehl:
+
+```bash
+dotnet publish src/OledCompanion.Tray/OledCompanion.Tray.csproj \
+  -c Release -r win-x64 --self-contained true \
+  -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true \
+  -p:IncludeNativeLibrariesForSelfExtract=true \
+  -p:DebugType=None -p:DebugSymbols=false -o ./publish
+```
+
+Unter Windows startet `OledCompanion.Tray.exe` die Tray-App. Schließen blendet das Fenster in den
+Tray aus; das Kontextmenü beendet die Anwendung. Die Einstellungen liegen lokal unter
+`%LOCALAPPDATA%\OLED Companion\settings.json`. Die Uhr ist das erste Standardmodul und sendet nur
+bei einer geänderten Minutenanzeige. Die Diagnoseauswahl A/B/C bleibt in der Tray-Oberfläche und in
+der Konsolen-App verfügbar.
 
 Der Hardwaretest ist in [WINDOWS-TEST.md](WINDOWS-TEST.md) beschrieben. Das lokal erzeugte Windows-ZIP liegt unter `dist/` und wird bewusst nicht versioniert.

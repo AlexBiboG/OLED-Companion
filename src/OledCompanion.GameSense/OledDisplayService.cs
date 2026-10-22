@@ -21,6 +21,10 @@ public sealed class OledDisplayService(
 
     public bool IsConnected => _connected;
 
+    public string? CurrentText => _currentText;
+
+    public string ActiveModule => _activeModule;
+
     public async Task StartAsync(CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();

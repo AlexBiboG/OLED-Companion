@@ -3,4 +3,7 @@
     <AssemblyName>OledCompanion.Modules</AssemblyName>
     <RootNamespace>OledCompanion.Modules</RootNamespace>
   </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../OledCompanion.GameSense/OledCompanion.GameSense.csproj" />
+  </ItemGroup>
 </Project>

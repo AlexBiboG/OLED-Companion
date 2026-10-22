@@ -10,5 +10,6 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../../src/OledCompanion.GameSense/OledCompanion.GameSense.csproj" />
+    <ProjectReference Include="../../src/OledCompanion.Modules/OledCompanion.Modules.csproj" />
   </ItemGroup>
 </Project>
