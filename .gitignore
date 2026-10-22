@@ -1,0 +1,25 @@
+# .NET build output
+bin/
+obj/
+publish/
+artifacts/
+
+# Local Windows test packages and generated archives
+dist/
+
+# IDE and user-specific files
+.vs/
+.vscode/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Local tooling and test scratch data
+*.nupkg
+TestResults/
+coverage/
